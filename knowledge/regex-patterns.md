@@ -100,10 +100,10 @@ const PATTERN_ITEM_JSON_BR  = /(?:item|i|el|row|entry|record)\.json\[['"](\w+)['
 PATTERN_PY_INPUT_ALL  = r'_input\.all\(\)'
 
 # item["json"]["field"]  или  item['json']['field']
-PATTERN_PY_ITEM_JSON  = r'(?:item|i|el|row)\[["\'"]json["\']\]\[["\'"](\w+)["\']\]'
+PATTERN_PY_ITEM_JSON  = r'(?:item|i|el|row)\[["\'"]json["\']\]\[["\'"](\ w+)["\']\]'
 
 # _json["field"]  или  _json['field']
-PATTERN_PY_JSON_BR    = r'_json\[["\'"](\w+)["\']\]'
+PATTERN_PY_JSON_BR    = r'_json\[["\'"](\ w+)["\']\]'
 
 # return [{"json": {"key": value}}]
 PATTERN_PY_RETURN     = r'return\s*\[\s*\{\s*["\']json["\']\s*:\s*\{'
@@ -158,7 +158,7 @@ function extractProviderFields(code) {
 }
 
 // Spread-оператор: return [{ json: { ...varName } }] → наследует ВСЕ поля переменной
-const PATTERN_RETURN_SPREAD = /return\s*\[\s*\{\s*json:\s*\{\s*\.\.\.(\w+)/g;
+const PATTERN_RETURN_SPREAD = /return\s*\[\s*\{\s*json:\s*\{\s*\.\.\.(\ w+)/g;
 
 // return [{ json: varName }] → ищем const varName = { ... }
 const PATTERN_RETURN_VAR    = /return\s*\[\s*\{\s*json:\s*(\w+)/g;
@@ -250,10 +250,10 @@ PATTERN_PY_JSON_BRACKET = r'_json\[[\'"](\w+)[\'"]\]'
 PATTERN_PY_JSON_GET     = r'_json\.get\([\'"](\w+)[\'"]'
 
 # item["json"]["field"] — доступ через items loop
-PATTERN_PY_ITEM_JSON    = r'item\[[\'"]json[\'"]\]\[[\'"](\w+)[\'"]\]'
+PATTERN_PY_ITEM_JSON    = r'item\[[\'"']json[\'"]\]\[[\'"](\w+)[\'"]\]'
 
 # _input.first()["json"]["field"]
-PATTERN_PY_INPUT_FIRST  = r'_input\.first\(\)\[[\'"]json[\'"]\]\[[\'"](\w+)[\'"]\]'
+PATTERN_PY_INPUT_FIRST  = r'_input\.first\(\)\[[\'"']json[\'"]\]\[[\'"](\w+)[\'"]\]'
 
 # Деструктуризация: field = _json["field"] или field = _json.get("field")
 PATTERN_PY_ASSIGN       = r'(\w+)\s*=\s*_json(?:\.get\(|)\[[\'"](\w+)[\'"]\]'
@@ -266,7 +266,7 @@ PATTERN_PY_ASSIGN       = r'(\w+)\s*=\s*_json(?:\.get\(|)\[[\'"](\w+)[\'"]\]'
 PATTERN_PY_RETURN       = r'return\s+\[\s*\{\s*["\']json["\']\s*:\s*\{([^}]+)\}'
 
 # Ключи в возвращаемом dict
-PATTERN_PY_DICT_KEY     = r'["\'](\w+)["\']:\s*'
+PATTERN_PY_DICT_KEY     = r'["\'](\ w+)["\']:\s*'
 ```
 
 ### Fallback-детектор (Python)
