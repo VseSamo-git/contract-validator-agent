@@ -316,7 +316,7 @@ function parseWithRegex(src) {
     consumers.push({ field: m[1], hasFallback: false, nodeRef: null });
   }
   // Consumers: $json[variable] → uncertain
-  for (const m of clean.matchAll(/\$json\[([^'")\]]+)\]/g)) {
+  for (const m of clean.matchAll(/\$json\[([^'"\)\]]+)\]/g)) {
     uncertain.push(`$json[dynamic:${m[1].trim()}]`);
   }
   // Consumers: destructuring
@@ -334,7 +334,7 @@ function parseWithRegex(src) {
     consumers.push({ field: m[1], hasFallback: m[0].includes('?.'), nodeRef: null });
   }
   // Consumers: $node["NodeName"].json.field (устаревший)
-  for (const m of clean.matchAll(/\$node\[['"]([^'"]+)['"]\]\.json(?:\?\.|\.)(\w+)/g)) {
+  for (const m of clean.matchAll(/\$node\[['"]([ ^'"]+)['"]\]\.json(?:\?\.|\.)(\w+)/g)) {
     consumers.push({ field: m[2], hasFallback: m[0].includes('?.'), nodeRef: m[1] });
   }
   // Consumers: $input.all() mode — item.json.field
