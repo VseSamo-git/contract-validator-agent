@@ -1,0 +1,124 @@
+{
+  "id": "test-expressions-001",
+  "name": "Test — UI node expressions (={{ $json.field }})",
+  "active": false,
+  "nodes": [
+    {
+      "id": "node-1",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "path": "expr-test",
+        "responseMode": "lastNode"
+      },
+      "position": [100, 300]
+    },
+    {
+      "id": "node-2",
+      "name": "Extract Payload",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// Provider: извлекает user_id, api_key_id, locale\nconst body = $json.body;\nreturn [{ json: {\n  user_id: body.userId,\n  api_key_id: body.keyId,\n  locale: body.lang || 'en',\n  request_ts: Date.now()\n}}];"
+      },
+      "position": [300, 300]
+    },
+    {
+      "id": "node-3",
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.example.com/users/{{ $json.user_id }}/profile?lang={{ $json.locale }}",
+        "headers": {
+          "X-Request-ID": "={{ $json.request_id }}"
+        },
+        "options": {}
+      },
+      "position": [500, 300]
+    },
+    {
+      "id": "node-4",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "display_name",
+              "value": "={{ $json.profile_name }}",
+              "type": "string"
+            },
+            {
+              "name": "avatar_url",
+              "value": "={{ $json.avatar }}",
+              "type": "string"
+            },
+            {
+              "name": "greeting",
+              "value": "=Hello {{ $json.profile_name }}, welcome!",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "position": [700, 300]
+    },
+    {
+      "id": "node-5",
+      "name": "IF Has Avatar",
+      "type": "n8n-nodes-base.if",
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.avatar_url }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEquals" }
+            }
+          ]
+        }
+      },
+      "position": [900, 300]
+    },
+    {
+      "id": "node-6",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ name: $json.display_name, avatar: $json.avatar_url }) }}"
+      },
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{ "node": "Extract Payload", "type": "main", "index": 0 }]]
+    },
+    "Extract Payload": {
+      "main": [[{ "node": "HTTP Request", "type": "main", "index": 0 }]]
+    },
+    "HTTP Request": {
+      "main": [[{ "node": "Edit Fields", "type": "main", "index": 0 }]]
+    },
+    "Edit Fields": {
+      "main": [[{ "node": "IF Has Avatar", "type": "main", "index": 0 }]]
+    },
+    "IF Has Avatar": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }],
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "_testNotes": {
+    "description": "Тестирует парсинг выражений {{ $json.field }} в UI-нодах (HTTP Request URL/headers, Set values, IF conditions)",
+    "expectedIssues": [
+      "CRITICAL: 'request_id' читается в HTTP Request header, но Provider 'Extract Payload' создаёт 'request_ts' (rename drift: request_id vs request_ts)",
+      "CRITICAL: 'profile_name' читается в 'Edit Fields' через ={{ $json.profile_name }}, но это зависит от ответа HTTP Request (unknown Provider)",
+      "CRITICAL: 'avatar' читается в 'Edit Fields' через ={{ $json.avatar }}, но это зависит от ответа HTTP Request (unknown Provider)",
+      "INFO: 'api_key_id' создаётся в 'Extract Payload', но нигде не читается"
+    ]
+  }
+}

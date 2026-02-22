@@ -1,0 +1,111 @@
+{
+  "id": "test-sample-001",
+  "name": "Sample Workflow — Contract Test Demo",
+  "active": false,
+  "nodes": [
+    {
+      "id": "node-1",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "path": "test-hook",
+        "responseMode": "onReceived"
+      },
+      "position": [100, 300]
+    },
+    {
+      "id": "node-2",
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// Provider: создаёт поля content, format, score\nconst raw = $json.body || {};\n\nconst content = raw.text || '';\nconst format = raw.type === 'image' ? 'image' : 'text';\nconst score = parseFloat(raw.confidence) || 0;\n\n// Намеренная ошибка #1: поле называется 'score', но дальше читают 'confidence_score'\nreturn [{ json: { content, format, score } }];"
+      },
+      "position": [300, 300]
+    },
+    {
+      "id": "node-3",
+      "name": "IF Check Format",
+      "type": "n8n-nodes-base.if",
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.format }}",
+              "rightValue": "image",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "position": [500, 300]
+    },
+    {
+      "id": "node-4",
+      "name": "Process Text",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// Consumer: читает 'confidence_score' — которого НЕТ у Provider!\n// Ошибка #1: CRITICAL — поле отсутствует\nconst score = $json.confidence_score;  // ← confidence_score не существует, есть 'score'\nconst content = $json.content;\n\n// Ошибка #2: WARNING — поле 'author' читается без fallback, но оно условное\nconst author = $json.author;  // ← author нигде не создавался\n\nreturn [{ json: { processed: content.toUpperCase(), score, author } }];"
+      },
+      "position": [700, 200]
+    },
+    {
+      "id": "node-5",
+      "name": "Process Image",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// Consumer: читает 'image_url' — которого НЕТ у Provider\n// Ошибка #3: CRITICAL — отсутствующее поле\nconst url = $json.image_url;  // ← не существует\nconst format = $json.format;  // ← OK, есть у Provider\n\nreturn [{ json: { imageUrl: url, format, type: 'image_processed' } }];"
+      },
+      "position": [700, 400]
+    },
+    {
+      "id": "node-6",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.set",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "result",
+              "value": "={{ $json.processed }}",
+              "type": "string"
+            },
+            {
+              "name": "unused_field_demo",
+              "value": "={{ $json.type }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{ "node": "Parse Input", "type": "main", "index": 0 }]]
+    },
+    "Parse Input": {
+      "main": [[{ "node": "IF Check Format", "type": "main", "index": 0 }]]
+    },
+    "IF Check Format": {
+      "main": [
+        [{ "node": "Process Image", "type": "main", "index": 0 }],
+        [{ "node": "Process Text", "type": "main", "index": 0 }]
+      ]
+    },
+    "Process Text": {
+      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+    },
+    "Process Image": {
+      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "_testNotes": {
+    "expectedIssues": [
+      "CRITICAL: 'confidence_score' читается в 'Process Text', но Provider 'Parse Input' создаёт 'score'",
+      "CRITICAL: 'image_url' читается в 'Process Image', но нигде не создаётся",
+      "CRITICAL: 'author' читается в 'Process Text' без fallback, нигде не создаётся",
+      "INFO: 'imageUrl' создаётся в 'Process Image', но 'Build Response' его не читает"
+    ]
+  }
+}

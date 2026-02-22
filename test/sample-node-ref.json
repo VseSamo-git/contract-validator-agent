@@ -1,0 +1,78 @@
+{
+  "id": "test-node-ref-001",
+  "name": "Test — $('Node').first().json.field references",
+  "active": false,
+  "nodes": [
+    {
+      "id": "node-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "parameters": {},
+      "position": [100, 300]
+    },
+    {
+      "id": "node-2",
+      "name": "Fetch User Profile",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// Provider: user_id, user_name, email, role\nreturn [{ json: {\n  user_id: 42,\n  user_name: 'john_doe',\n  email: 'john@example.com',\n  role: 'admin'\n}}];"
+      },
+      "position": [300, 300]
+    },
+    {
+      "id": "node-3",
+      "name": "Fetch Orders",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// Provider: orders, total_amount\nreturn [{ json: {\n  orders: [{ id: 1, amount: 100 }, { id: 2, amount: 200 }],\n  total_amount: 300\n}}];"
+      },
+      "position": [300, 500]
+    },
+    {
+      "id": "node-4",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "parameters": {
+        "mode": "append"
+      },
+      "position": [500, 400]
+    },
+    {
+      "id": "node-5",
+      "name": "Build Summary",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// Consumer: использует $('Node').first().json.field для cross-reference\nconst userName = $('Fetch User Profile').first().json.user_name;\nconst userEmail = $('Fetch User Profile').first().json.email;\nconst totalAmount = $('Fetch Orders').first().json.total_amount;\n\n// BUG: 'display_name' не существует — есть 'user_name'\nconst displayName = $('Fetch User Profile').first().json.display_name;\n\n// BUG: 'order_count' не существует у Fetch Orders\nconst orderCount = $('Fetch Orders').first().json.order_count;\n\nreturn [{ json: { userName, userEmail, totalAmount, displayName, orderCount, summary: `${userName}: $${totalAmount}` } }];"
+      },
+      "position": [700, 400]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          { "node": "Fetch User Profile", "type": "main", "index": 0 },
+          { "node": "Fetch Orders", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Fetch User Profile": {
+      "main": [[{ "node": "Merge", "type": "main", "index": 0 }]]
+    },
+    "Fetch Orders": {
+      "main": [[{ "node": "Merge", "type": "main", "index": 1 }]]
+    },
+    "Merge": {
+      "main": [[{ "node": "Build Summary", "type": "main", "index": 0 }]]
+    }
+  },
+  "_testNotes": {
+    "description": "Тестирует парсинг $('Node').first().json.field — cross-node references",
+    "expectedIssues": [
+      "CRITICAL: 'display_name' читается через $('Fetch User Profile').first().json.display_name, но Provider создаёт 'user_name'",
+      "CRITICAL: 'order_count' читается через $('Fetch Orders').first().json.order_count, но Provider создаёт 'orders' и 'total_amount'",
+      "INFO: 'role' создаётся в 'Fetch User Profile', но нигде не читается",
+      "INFO: 'orders' (массив) создаётся в 'Fetch Orders', но нигде не читается"
+    ]
+  }
+}

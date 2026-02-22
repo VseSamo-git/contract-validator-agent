@@ -1,0 +1,6 @@
+.env
+.mcp.json
+node_modules/
+history/*.json
+!history/.gitkeep
+.last_workflow_id

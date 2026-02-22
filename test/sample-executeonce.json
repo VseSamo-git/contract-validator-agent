@@ -1,0 +1,64 @@
+{
+  "id": "test-executeonce-001",
+  "name": "Test — executeOnce mode + $input.all()/item.json patterns",
+  "active": false,
+  "nodes": [
+    {
+      "id": "node-1",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+      },
+      "position": [100, 300]
+    },
+    {
+      "id": "node-2",
+      "name": "Generate Items",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// Provider: генерирует несколько items с полями name, value, category\nreturn [\n  { json: { name: 'item1', value: 10, category: 'A' } },\n  { json: { name: 'item2', value: 20, category: 'B' } },\n  { json: { name: 'item3', value: 30, category: 'A' } }\n];"
+      },
+      "position": [300, 300]
+    },
+    {
+      "id": "node-3",
+      "name": "Aggregate All Items",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// Consumer в режиме executeOnce: использует $input.all() и item.json\nconst allItems = $input.all();\nconst total = allItems.reduce((sum, item) => sum + item.json.value, 0);\nconst names = allItems.map(item => item.json.name);\n\n// BUG: 'price' не существует — есть 'value'\nconst prices = allItems.map(item => item.json.price);\n\n// BUG: 'tag' не существует — есть 'category'\nconst firstTag = $input.first().json.tag;\n\nreturn [{ json: { total, names, prices, firstTag } }];",
+        "executeOnce": true
+      },
+      "position": [500, 300]
+    },
+    {
+      "id": "node-4",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// Consumer: читает результат агрегации\nconst { total, names } = $json;\n\n// BUG: 'count' не существует — нет такого поля у Provider\nconst count = $json.count;\n\nreturn [{ json: { report: `Total: ${total}, Items: ${names.join(', ')}`, count } }];"
+      },
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Generate Items", "type": "main", "index": 0 }]]
+    },
+    "Generate Items": {
+      "main": [[{ "node": "Aggregate All Items", "type": "main", "index": 0 }]]
+    },
+    "Aggregate All Items": {
+      "main": [[{ "node": "Format Output", "type": "main", "index": 0 }]]
+    }
+  },
+  "_testNotes": {
+    "description": "Тестирует executeOnce=true, $input.all(), $input.first().json, item.json.field, деструктуризацию",
+    "expectedIssues": [
+      "CRITICAL: 'price' читается через item.json.price в executeOnce ноде, но Provider создаёт 'value'",
+      "CRITICAL: 'tag' читается через $input.first().json.tag, но Provider создаёт 'category'",
+      "CRITICAL: 'count' читается в 'Format Output' через деструктуризацию, но 'Aggregate All Items' не создаёт это поле",
+      "INFO: 'category' создаётся в 'Generate Items', но не читается (Consumer читает 'tag' вместо 'category')"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "contract-validator-agent",
+  "private": true,
+  "description": "Claude Code agent for static contract testing of n8n workflows",
+  "version": "5.0.0",
+  "devDependencies": {
+    "acorn": "^8.0.0"
+  }
+}

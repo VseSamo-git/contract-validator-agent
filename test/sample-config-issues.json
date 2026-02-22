@@ -1,0 +1,164 @@
+{
+  "id": "test-config-001",
+  "name": "Test — FlowLint R1-R10 CONFIG violations",
+  "active": false,
+  "nodes": [
+    {
+      "id": "node-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "path": "config-test",
+        "responseMode": "onReceived",
+        "authentication": "none"
+      },
+      "position": [100, 300]
+    },
+    {
+      "id": "node-2",
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.example.com/data",
+        "options": {}
+      },
+      "position": [300, 200]
+    },
+    {
+      "id": "node-3",
+      "name": "HTTP Request1",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.example.com/submit",
+        "options": {}
+      },
+      "position": [300, 400]
+    },
+    {
+      "id": "node-4",
+      "name": "HTTP Request2",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.example.com/users",
+        "options": {}
+      },
+      "position": [300, 600]
+    },
+    {
+      "id": "node-5",
+      "name": "HTTP Request3",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.example.com/orders",
+        "options": {}
+      },
+      "position": [300, 800]
+    },
+    {
+      "id": "node-6",
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// R5 violation: hardcoded secret\nconst apiKey = 'sk-proj-abc123def456ghi789jkl012mno345pqr678stu901vwx234';\nconst result = $json.data;\nreturn [{ json: { result, processed: true } }];"
+      },
+      "position": [500, 300]
+    },
+    {
+      "id": "node-7",
+      "name": "Set",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "continueOnFail": true,
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "output",
+              "value": "={{ $json.result }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "position": [700, 300]
+    },
+    {
+      "id": "node-8",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "parameters": {
+        "batchSize": 10
+      },
+      "position": [500, 600]
+    },
+    {
+      "id": "node-9",
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "parameters": {
+        "operation": "append",
+        "sheetName": "Sheet1"
+      },
+      "position": [900, 300]
+    },
+    {
+      "id": "node-10",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "parameters": {
+        "mode": "append"
+      },
+      "position": [700, 600]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          { "node": "HTTP Request", "type": "main", "index": 0 },
+          { "node": "HTTP Request1", "type": "main", "index": 0 },
+          { "node": "HTTP Request2", "type": "main", "index": 0 },
+          { "node": "HTTP Request3", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [[{ "node": "Code", "type": "main", "index": 0 }]]
+    },
+    "HTTP Request2": {
+      "main": [[{ "node": "Split In Batches", "type": "main", "index": 0 }]]
+    },
+    "HTTP Request3": {
+      "main": [[{ "node": "Split In Batches", "type": "main", "index": 0 }]]
+    },
+    "Code": {
+      "main": [[{ "node": "Set", "type": "main", "index": 0 }]]
+    },
+    "Set": {
+      "main": [[{ "node": "Google Sheets", "type": "main", "index": 0 }]]
+    },
+    "Split In Batches": {
+      "main": [[{ "node": "Merge", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {},
+  "_testNotes": {
+    "description": "Тестирует все FlowLint правила R1-R10. Каждая нода специально нарушает одно или несколько правил.",
+    "expectedIssues": [
+      "CONFIG R1: 'HTTP Request' — HTTP Request без Retry on Fail (4 ноды: HTTP Request, HTTP Request1, HTTP Request2, HTTP Request3)",
+      "CONFIG R2: 4 HTTP Request ноды без механизма throttle/batching (нет Split In Batches или Wait между ними)",
+      "CONFIG R3: Workflow не имеет Error Workflow (settings.errorWorkflow отсутствует)",
+      "CONFIG R4: 'Set' — continueOnFail = true, ошибки будут молча проглочены",
+      "CONFIG R5: 'Code' — найден возможный хардкод секрета (sk-proj-...)",
+      "CONFIG R6: 'Google Sheets' — операция 'append' без механизма дедупликации",
+      "CONFIG R7: 'Merge' — dead end нода (нет исходящих connections)",
+      "CONFIG R8: 'Split In Batches' без workflow.settings.executionTimeout",
+      "CONFIG R9: 'Webhook' — authentication = 'none', открытый endpoint",
+      "CONFIG R10: Дефолтные имена: 'HTTP Request', 'HTTP Request1', 'HTTP Request2', 'HTTP Request3', 'Code', 'Set', 'Merge', 'Split In Batches', 'Webhook', 'Google Sheets'"
+    ]
+  }
+}

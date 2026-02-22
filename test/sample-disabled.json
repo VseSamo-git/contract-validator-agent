@@ -1,0 +1,70 @@
+{
+  "id": "test-disabled-001",
+  "name": "Test — Disabled Provider node",
+  "active": false,
+  "nodes": [
+    {
+      "id": "node-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "path": "disabled-test",
+        "responseMode": "onReceived"
+      },
+      "position": [100, 300]
+    },
+    {
+      "id": "node-2",
+      "name": "Enrich User Data",
+      "type": "n8n-nodes-base.code",
+      "disabled": true,
+      "parameters": {
+        "jsCode": "// DISABLED Provider: создаёт enriched_name и enriched_email\n// При включении: обогащает данные из внешнего API\nconst body = $json.body;\nreturn [{ json: {\n  enriched_name: body.name.toUpperCase(),\n  enriched_email: body.email.toLowerCase(),\n  enrichment_source: 'api_v2'\n}}];"
+      },
+      "position": [300, 300]
+    },
+    {
+      "id": "node-3",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// Active Provider: проверяет и возвращает данные\nconst body = $json.body || {};\nconst name = body.name || 'unknown';\nconst email = body.email || '';\nreturn [{ json: { name, email, validated: true } }];"
+      },
+      "position": [300, 500]
+    },
+    {
+      "id": "node-4",
+      "name": "Build Profile",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// Consumer: читает поля от обоих путей\n// Проблема: enriched_name/enriched_email приходят ТОЛЬКО от disabled ноды!\nconst displayName = $json.enriched_name || $json.name;\nconst contactEmail = $json.enriched_email;\n\n// 'enrichment_source' — только от disabled ноды, без fallback\nconst source = $json.enrichment_source;\n\nreturn [{ json: { displayName, contactEmail, source, profile_complete: true } }];"
+      },
+      "position": [500, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          { "node": "Enrich User Data", "type": "main", "index": 0 },
+          { "node": "Validate Input", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Enrich User Data": {
+      "main": [[{ "node": "Build Profile", "type": "main", "index": 0 }]]
+    },
+    "Validate Input": {
+      "main": [[{ "node": "Build Profile", "type": "main", "index": 0 }]]
+    }
+  },
+  "_testNotes": {
+    "description": "Тестирует обработку disabled нод: Provider отключена, но Consumer ожидает её поля",
+    "expectedIssues": [
+      "WARNING: Provider 'Enrich User Data' отключена. Consumer 'Build Profile' не получит поле 'enriched_name' при текущей конфигурации (есть fallback через ||)",
+      "CRITICAL: 'enriched_email' читается в 'Build Profile' без fallback, единственный Provider 'Enrich User Data' отключён",
+      "CRITICAL: 'enrichment_source' читается в 'Build Profile' без fallback, единственный Provider 'Enrich User Data' отключён",
+      "INFO: 'validated' создаётся в 'Validate Input', но не читается в 'Build Profile'"
+    ]
+  }
+}
